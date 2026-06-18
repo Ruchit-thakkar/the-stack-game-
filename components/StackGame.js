@@ -34,10 +34,24 @@ export default function StackGame() {
     toggleMute,
   } = useGameEngine();
 
-  // Initialize ambient backing track
+  // Initialize ambient backing track and handle browser autoplay policy
   useEffect(() => {
+    const initAudio = () => {
+      soundManager.startAmbience();
+      document.removeEventListener('click', initAudio, { capture: true });
+      document.removeEventListener('touchstart', initAudio, { capture: true });
+    };
+    
+    // Add interaction listeners to resume audio context as soon as user clicks anywhere
+    document.addEventListener('click', initAudio, { capture: true });
+    document.addEventListener('touchstart', initAudio, { capture: true });
+    
+    // Also try starting immediately in case page is already focused/unlocked
     soundManager.startAmbience();
+
     return () => {
+      document.removeEventListener('click', initAudio, { capture: true });
+      document.removeEventListener('touchstart', initAudio, { capture: true });
       soundManager.stopAmbience();
     };
   }, []);
@@ -69,6 +83,7 @@ export default function StackGame() {
   // Desktop keyboard drop triggers and pause toggle
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (e.repeat) return;
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault(); // Prevents spacebar page scroll
         if (phase === 'PLAYING' && !isPaused) {

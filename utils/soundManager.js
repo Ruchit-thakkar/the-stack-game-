@@ -12,10 +12,8 @@ let musicVolume = 0.3;
 
 const audioCache = {};
 
-let ambienceOsc = null;
-let ambienceOsc2 = null;
-let ambienceGain = null;
-let ambienceLFO = null;
+let ambienceInterval = null;
+let activeAmbienceNodes = [];
 
 function getAudioContext() {
   if (typeof window === 'undefined') return null;
@@ -172,19 +170,31 @@ const synthesizers = {
     if (!ctx) return;
     const currentTime = ctx.currentTime;
 
-    const osc = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(90, currentTime);
-    osc.frequency.exponentialRampToValueAtTime(30, currentTime + 0.6);
-    gainNode.gain.setValueAtTime(effectsVolume * masterVolume * 0.4, currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, currentTime + 0.6);
-    osc.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    osc.start(currentTime);
-    osc.stop(currentTime + 0.65);
+    // Descending melancholy arpeggio (E4 -> C4 -> A3 -> E3)
+    const notes = [329.63, 261.63, 220.00, 164.81];
+    notes.forEach((freq, idx) => {
+      const startTime = currentTime + idx * 0.12;
+      const duration = 0.75;
+      
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc.type = 'triangle'; // Soft triangle wave
+      osc.frequency.setValueAtTime(freq, startTime);
+      
+      gainNode.gain.setValueAtTime(0.0, currentTime);
+      gainNode.gain.setValueAtTime(effectsVolume * masterVolume * 0.22, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.05);
+    });
 
-    const bufferSize = ctx.sampleRate * 1.0;
+    // Ambient reverb noise filter decay
+    const bufferSize = ctx.sampleRate * 1.2;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -194,15 +204,15 @@ const synthesizers = {
     noise.buffer = buffer;
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(200, currentTime);
+    filter.frequency.setValueAtTime(150, currentTime);
     const noiseGain = ctx.createGain();
     noiseGain.gain.setValueAtTime(effectsVolume * masterVolume * 0.04, currentTime);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, currentTime + 0.9);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, currentTime + 1.2);
     noise.connect(filter);
     filter.connect(noiseGain);
     noiseGain.connect(ctx.destination);
     noise.start(currentTime);
-    noise.stop(currentTime + 0.95);
+    noise.stop(currentTime + 1.25);
   },
 
   newrecord: () => {
@@ -301,13 +311,17 @@ export const soundManager = {
 
   setMusicVolume: (vol) => {
     musicVolume = Math.max(0, Math.min(1, vol));
-    if (ambienceGain && audioCtx) {
-      ambienceGain.gain.setValueAtTime(musicVolume * masterVolume * 0.05, audioCtx.currentTime);
+    if (audioCtx) {
+      activeAmbienceNodes.forEach(node => {
+        try {
+          node.gainNode.gain.setValueAtTime(musicVolume * masterVolume * 0.04, audioCtx.currentTime);
+        } catch (e) {}
+      });
     }
   },
 
   playDrop: () => {
-    playFile("drop", 1.0, 1.0, synthesizers.drop);
+    // Disabled to keep normal drops silent
   },
 
   playPerfect: (combo = 1) => {
@@ -334,53 +348,78 @@ export const soundManager = {
 
   startAmbience: () => {
     const ctx = getAudioContext();
-    if (!ctx || isMuted || ambienceOsc) return;
+    if (!ctx || isMuted || ambienceInterval) return;
 
-    const currentTime = ctx.currentTime;
-    ambienceOsc = ctx.createOscillator();
-    ambienceOsc2 = ctx.createOscillator();
-    ambienceGain = ctx.createGain();
+    const chords = [
+      [110.00, 164.81, 220.00, 277.18, 329.63], // A2, E3, A3, C#4, E4 (A major 7)
+      [92.50, 138.59, 220.00, 277.18, 329.63],  // F#2, C#3, A3, C#4, E4 (F# minor 7)
+      [73.42, 146.83, 220.00, 293.66, 329.63],  // D2, D3, A3, D4, E4 (D major 9)
+      [82.41, 164.81, 246.94, 293.66, 369.99]   // E2, E3, B3, D4, F#4 (E7 / Esus4)
+    ];
 
-    ambienceOsc.type = 'sine';
-    ambienceOsc.frequency.setValueAtTime(110.00, currentTime); // A2
-    ambienceOsc2.type = 'sine';
-    ambienceOsc2.frequency.setValueAtTime(164.81, currentTime); // E3
+    let chordIdx = 0;
 
-    ambienceGain.gain.setValueAtTime(musicVolume * masterVolume * 0.04, currentTime);
+    const playNextChord = () => {
+      const now = ctx.currentTime;
+      const chord = chords[chordIdx];
+      chordIdx = (chordIdx + 1) % chords.length;
 
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(180, currentTime);
+      const duration = 7.5; // Chord duration in seconds
+      const attack = 2.5;   // Slow fade in
+      const release = 2.5;  // Slow fade out
 
-    ambienceLFO = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    ambienceLFO.frequency.value = 0.08;
-    lfoGain.gain.value = 45;
+      chord.forEach((freq) => {
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
 
-    ambienceLFO.connect(lfoGain);
-    lfoGain.connect(filter.frequency);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
 
-    ambienceOsc.connect(filter);
-    ambienceOsc2.connect(filter);
-    filter.connect(ambienceGain);
-    ambienceGain.connect(ctx.destination);
+        // Amplitude envelope
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(musicVolume * masterVolume * 0.04, now + attack);
+        gainNode.gain.setValueAtTime(musicVolume * masterVolume * 0.04, now + duration - release);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-    ambienceOsc.start(currentTime);
-    ambienceOsc2.start(currentTime);
-    ambienceLFO.start(currentTime);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(400, now); // Warm lowpass filter
+
+        osc.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration + 0.1);
+
+        activeAmbienceNodes.push({ osc, gainNode });
+      });
+
+      // Cleanup finished nodes from active array after they stop
+      setTimeout(() => {
+        activeAmbienceNodes = activeAmbienceNodes.filter(node => {
+          return node.osc.context.currentTime < (now + duration);
+        });
+      }, (duration + 0.5) * 1000);
+    };
+
+    // Play first chord immediately
+    playNextChord();
+
+    // Schedule chords every 6 seconds (overlapping slightly for smooth transitions)
+    ambienceInterval = setInterval(playNextChord, 6000);
   },
 
   stopAmbience: () => {
-    if (ambienceOsc) {
-      try {
-        ambienceOsc.stop();
-        ambienceOsc2.stop();
-        ambienceLFO.stop();
-      } catch (e) {}
-      ambienceOsc = null;
-      ambienceOsc2 = null;
-      ambienceLFO = null;
-      ambienceGain = null;
+    if (ambienceInterval) {
+      clearInterval(ambienceInterval);
+      ambienceInterval = null;
     }
+    activeAmbienceNodes.forEach(node => {
+      try {
+        node.osc.stop();
+      } catch (e) {}
+    });
+    activeAmbienceNodes = [];
   }
 };

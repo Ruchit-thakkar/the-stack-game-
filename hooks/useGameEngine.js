@@ -272,7 +272,6 @@ export function useGameEngine() {
     } else {
       if (!isAutopilot) {
         setCombo(0);
-        soundManager.playDrop();
       }
 
       // Create falling block from cut-off chunk (debris)

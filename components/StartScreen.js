@@ -13,7 +13,6 @@ export default function StartScreen({ bestScore, gamesPlayed, highestCombo, tota
   return (
     <div 
       className="absolute inset-0 flex items-center justify-center bg-slate-950/10 backdrop-blur-[1px] z-10 select-none overflow-hidden pb-safe px-4 py-6 sm:py-8 md:py-10"
-      onClick={onStart} // Clicking anywhere on the backdrop starts the game
     >
       {/* Top Right: Volume Settings */}
       <div className="absolute top-6 right-6 z-20 pointer-events-auto">
