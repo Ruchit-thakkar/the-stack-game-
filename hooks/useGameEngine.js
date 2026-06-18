@@ -389,6 +389,40 @@ export function useGameEngine() {
         nextDirection = 1;
       }
 
+      // Autopilot trigger: drop block when it crosses center
+      if (currentPhase === 'START') {
+        const wasLeft = currentMoving.x < topBlock.x;
+        const isLeft = nextX < topBlock.x;
+        if (wasLeft !== isLeft || nextX === topBlock.x) {
+          // Generate a natural-looking offset (not always perfect, but guaranteed overlap)
+          // 40% perfect, 60% with offset (between 4px and 12px)
+          let offset = 0;
+          if (Math.random() > 0.4) {
+            const side = Math.random() > 0.5 ? 1 : -1;
+            offset = side * (4 + Math.random() * 8); 
+          }
+          
+          nextX = topBlock.x + offset;
+          
+          // Safeguard: Ensure the offset does not reduce the block width below 40px,
+          // so it never falls off completely in the background loop.
+          const hypotheticalOverlap = currentMoving.width - Math.abs(offset);
+          if (hypotheticalOverlap < 40) {
+            nextX = topBlock.x;
+          }
+
+          const nextMovingSnapped = {
+            ...currentMoving,
+            x: nextX,
+            direction: nextDirection,
+          };
+          setMovingBlock(nextMovingSnapped);
+          stateRef.current.movingBlock = nextMovingSnapped;
+          dropBlock(true);
+          return;
+        }
+      }
+
       const nextMoving = {
         ...currentMoving,
         x: nextX,
@@ -397,17 +431,6 @@ export function useGameEngine() {
 
       setMovingBlock(nextMoving);
       stateRef.current.movingBlock = nextMoving;
-
-      // Autopilot trigger: drop block when close to center
-      if (currentPhase === 'START') {
-        const diff = nextX - topBlock.x;
-        // Check if block is passing center (absolute difference is small)
-        // Add a slight variance to make autopilot look natural
-        const triggerThreshold = 1.5;
-        if (Math.abs(diff) < triggerThreshold) {
-          dropBlock(true);
-        }
-      }
     }
 
     // 3. Update falling debris block locations

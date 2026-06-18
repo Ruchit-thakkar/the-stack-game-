@@ -40,7 +40,12 @@ export default function StartScreen({ bestScore, gamesPlayed, highestCombo, tota
         className="w-full max-w-[92%] sm:max-w-[500px] md:max-w-[720px] lg:max-w-[800px] p-6 sm:p-10 md:p-12 rounded-[28px] sm:rounded-[36px] border border-white/5 bg-teal-950/10 backdrop-blur-2xl shadow-2xl flex flex-col items-center justify-between text-center transition-all duration-500"
       >
         {/* Title Section */}
-        <div className="mb-6 sm:mb-8 md:mb-10">
+        <div className="mb-6 sm:mb-8 md:mb-10 flex flex-col items-center">
+          <img 
+            src="https://ik.imagekit.io/devnext/stackgamelogo.png" 
+            alt="STACK Logo" 
+            className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 object-contain select-none filter drop-shadow-[0_6px_20px_rgba(20,184,166,0.3)] mb-4 sm:mb-5 md:mb-6"
+          />
           <h1 className="font-clamp-title font-black tracking-[0.3em] text-stone-100 font-title select-none drop-shadow-[0_2px_10px_rgba(255,255,255,0.05)] leading-none">
             STACK
           </h1>

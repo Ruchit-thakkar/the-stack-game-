@@ -21,6 +21,9 @@ export const metadata = {
   description: 'Stack isometric blocks as high as you can! Compete to beat your high score in this addicting, zero-dependency browser game.',
   keywords: 'stack game, 3d stack, isometric stack, arcade game, browser game, next.js game',
   authors: [{ name: 'Antigravity Code Assistant' }],
+  icons: {
+    icon: 'https://ik.imagekit.io/devnext/stackgamelogo.png',
+  },
 };
 
 export const viewport = {
