@@ -72,6 +72,20 @@ export function useGameEngine() {
 
   const autopilotTimeoutRef = useRef(null);
 
+  const [isMuted, setIsMuted] = useLocalStorage('stackGame_isMuted', false);
+
+  const toggleMute = useCallback(() => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      soundManager.setMuted(next);
+      return next;
+    });
+  }, [setIsMuted]);
+
+  useEffect(() => {
+    soundManager.setMuted(isMuted);
+  }, [isMuted]);
+
   // References for game loop state to avoid react closure stale states in requestAnimationFrame
   const stateRef = useRef({
     phase: 'START',
@@ -501,6 +515,7 @@ export function useGameEngine() {
     totalBlocksPlaced,
     combo,
     isPaused,
+    isMuted,
     blocks,
     movingBlock,
     fallingBlocks,
@@ -511,6 +526,7 @@ export function useGameEngine() {
     dropBlock: () => dropBlock(false),
     togglePause,
     setIsPaused: setPaused,
+    toggleMute,
   };
 }
 

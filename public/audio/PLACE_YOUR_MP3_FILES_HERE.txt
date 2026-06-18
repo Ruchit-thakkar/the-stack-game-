@@ -1,0 +1,11 @@
+To use custom MP3 sound effects instead of the default real-time synthesized audio:
+
+1. Place your own custom MP3 files inside this folder:
+   - drop.mp3 (Block placement sound)
+   - perfect.mp3 (First perfect placement sound)
+   - combo.mp3 (Consecutive perfect placements sound)
+   - gameover.mp3 (Failure sound)
+   - newrecord.mp3 (High score celebration sound)
+   - click.mp3 (UI button clicks)
+
+2. Once you place the files here, the game can load and play them directly.

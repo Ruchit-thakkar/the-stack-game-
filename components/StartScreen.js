@@ -1,10 +1,10 @@
 import React from 'react';
-import { Play, Trophy, Flame, Layers } from 'lucide-react';
+import { Play, Trophy, Flame, Layers, Volume2, VolumeX } from 'lucide-react';
 
 /**
  * StartScreen - Renders the initial landing screen menu with stats.
  */
-export default function StartScreen({ bestScore, gamesPlayed, highestCombo, totalBlocksPlaced, onStart }) {
+export default function StartScreen({ bestScore, gamesPlayed, highestCombo, totalBlocksPlaced, onStart, isMuted, onToggleMute }) {
   const bestVal = bestScore || 0;
   const comboVal = highestCombo || 0;
   const gamesVal = gamesPlayed || 0;
@@ -15,6 +15,19 @@ export default function StartScreen({ bestScore, gamesPlayed, highestCombo, tota
       className="absolute inset-0 flex items-center justify-center bg-slate-950/10 backdrop-blur-[1px] z-10 select-none overflow-hidden pb-safe px-4 py-6 sm:py-8 md:py-10"
       onClick={onStart} // Clicking anywhere on the backdrop starts the game
     >
+      {/* Top Right: Volume Settings */}
+      <div className="absolute top-6 right-6 z-20 pointer-events-auto">
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleMute();
+          }}
+          aria-label={isMuted ? "Unmute sound" : "Mute sound"}
+          className="flex items-center justify-center w-10 h-10 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 active:scale-95 transition-all duration-300 text-stone-300 focus:outline-none"
+        >
+          {isMuted ? <VolumeX className="w-4.5 h-4.5" /> : <Volume2 className="w-4.5 h-4.5" />}
+        </button>
+      </div>
       {/* Living Atmospheric Background (moving stars, fog, drifts) */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
         {/* Calm slow-moving volumetric blobs */}

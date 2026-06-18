@@ -1,10 +1,10 @@
 import React from 'react';
-import { Pause } from 'lucide-react';
+import { Pause, Volume2, VolumeX } from 'lucide-react';
 
 /**
  * HUD - Minimal head-up display overlay for gameplay stats.
  */
-export default function HUD({ score, combo, onPause }) {
+export default function HUD({ score, combo, onPause, isMuted, onToggleMute }) {
   return (
     <div className="absolute inset-0 p-6 flex flex-col justify-between pointer-events-none select-none z-10 font-ui">
       
@@ -25,14 +25,23 @@ export default function HUD({ score, combo, onPause }) {
           )}
         </div>
 
-        {/* Top Right: Minimal Pause Button */}
-        <button 
-          onClick={onPause}
-          aria-label="Pause game"
-          className="pointer-events-auto flex items-center justify-center w-10 h-10 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 active:scale-95 transition-all duration-300 text-stone-300 focus:outline-none"
-        >
-          <Pause className="w-4 h-4 fill-current" />
-        </button>
+        {/* Top Right: Controls (Volume & Pause) */}
+        <div className="pointer-events-auto flex items-center gap-2">
+          <button 
+            onClick={onToggleMute}
+            aria-label={isMuted ? "Unmute sound" : "Mute sound"}
+            className="flex items-center justify-center w-10 h-10 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 active:scale-95 transition-all duration-300 text-stone-300 focus:outline-none"
+          >
+            {isMuted ? <VolumeX className="w-4.5 h-4.5" /> : <Volume2 className="w-4.5 h-4.5" />}
+          </button>
+          <button 
+            onClick={onPause}
+            aria-label="Pause game"
+            className="flex items-center justify-center w-10 h-10 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 active:scale-95 transition-all duration-300 text-stone-300 focus:outline-none"
+          >
+            <Pause className="w-4 h-4 fill-current" />
+          </button>
+        </div>
       </div>
 
       {/* Bottom Section: Subtle Control Hints */}

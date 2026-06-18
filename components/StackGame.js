@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useGameEngine } from '../hooks/useGameEngine';
 import GameCanvas from './GameCanvas';
 import StartScreen from './StartScreen';
 import HUD from './HUD';
 import GameOverScreen from './GameOverScreen';
 import PauseScreen from './PauseScreen';
+import { soundManager } from '../utils/soundManager';
 
 /**
  * StackGame - The coordinator component.
@@ -20,6 +21,7 @@ export default function StackGame() {
     totalBlocksPlaced,
     combo,
     isPaused,
+    isMuted,
     blocks,
     movingBlock,
     fallingBlocks,
@@ -29,7 +31,40 @@ export default function StackGame() {
     goToMenu,
     dropBlock,
     togglePause,
+    toggleMute,
   } = useGameEngine();
+
+  // Initialize ambient backing track
+  useEffect(() => {
+    soundManager.startAmbience();
+    return () => {
+      soundManager.stopAmbience();
+    };
+  }, []);
+
+  const handleStartGame = useCallback(() => {
+    soundManager.playClick('play');
+    startGame();
+  }, [startGame]);
+
+  const handleGoToMenu = useCallback(() => {
+    soundManager.playClick('menu');
+    goToMenu();
+  }, [goToMenu]);
+
+  const handleTogglePause = useCallback(() => {
+    if (isPaused) {
+      soundManager.playClick('resume');
+    } else {
+      soundManager.playClick('pause');
+    }
+    togglePause();
+  }, [isPaused, togglePause]);
+
+  const handleToggleMute = useCallback(() => {
+    soundManager.playClick('menu');
+    toggleMute();
+  }, [toggleMute]);
 
   // Desktop keyboard drop triggers and pause toggle
   useEffect(() => {
@@ -39,19 +74,19 @@ export default function StackGame() {
         if (phase === 'PLAYING' && !isPaused) {
           dropBlock();
         } else if (phase === 'START') {
-          startGame();
+          handleStartGame();
         }
       } else if (e.code === 'KeyP' || e.code === 'Escape') {
         if (phase === 'PLAYING') {
           e.preventDefault();
-          togglePause();
+          handleTogglePause();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [phase, isPaused, dropBlock, startGame, togglePause]);
+  }, [phase, isPaused, dropBlock, handleStartGame, handleTogglePause]);
 
   // Pointer interactions (handles touchstart and mousedown in 1 call, zero latency)
   const handleInteraction = (e) => {
@@ -90,7 +125,9 @@ export default function StackGame() {
           gamesPlayed={gamesPlayed}
           highestCombo={highestCombo}
           totalBlocksPlaced={totalBlocksPlaced}
-          onStart={startGame} 
+          onStart={handleStartGame} 
+          isMuted={isMuted}
+          onToggleMute={handleToggleMute}
         />
       )}
 
@@ -99,7 +136,9 @@ export default function StackGame() {
           score={score} 
           bestScore={bestScore} 
           combo={combo}
-          onPause={togglePause} 
+          onPause={handleTogglePause} 
+          isMuted={isMuted}
+          onToggleMute={handleToggleMute}
         />
       )}
 
@@ -109,20 +148,19 @@ export default function StackGame() {
           bestScore={bestScore} 
           highestCombo={highestCombo}
           totalBlocksPlaced={totalBlocksPlaced}
-          onRestart={startGame} 
-          onMainMenu={goToMenu} 
+          onRestart={handleStartGame} 
+          onMainMenu={handleGoToMenu} 
         />
       )}
 
       {/* Pause Overlay */}
       {phase === 'PLAYING' && isPaused && (
         <PauseScreen 
-          onResume={togglePause}
-          onRestart={startGame}
-          onMainMenu={goToMenu}
+          onResume={handleTogglePause}
+          onRestart={handleStartGame}
+          onMainMenu={handleGoToMenu}
         />
       )}
     </div>
   );
 }
-
