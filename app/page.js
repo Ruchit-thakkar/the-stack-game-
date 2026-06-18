@@ -17,9 +17,9 @@ const StackGame = dynamic(() => import('../components/StackGame'), {
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#020617]">
-      {/* Responsive layout: capped at 480px centered on desktop, full-viewport on mobile */}
-      <div className="relative w-full max-w-[480px] h-screen bg-slate-950 overflow-hidden md:border-x md:border-white/5 md:shadow-[0_0_80px_-15px_rgba(0,0,0,0.9)]">
+    <main className="flex min-h-screen items-center justify-center bg-[#020617] w-full overflow-hidden">
+      {/* Full screen layout for premium, immersive experience */}
+      <div className="relative w-full h-screen bg-slate-950 overflow-hidden">
         <StackGame />
       </div>
     </main>

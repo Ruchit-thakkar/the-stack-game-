@@ -1,11 +1,48 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GAME_CONSTANTS } from '../utils/gameConstants';
 import { useLocalStorage } from './useLocalStorage';
+import { soundManager } from '../utils/soundManager';
+
+/**
+ * Calculates game speed based on the desired difficulty curve:
+ * - Score 0-30: 3.0 to 3.3 (extremely slow, beginner-friendly)
+ * - Score 30-50: 3.3 to 3.8 (slight increase)
+ * - Score 50-100: 3.8 to 4.8 (gradual move to medium)
+ * - Score 100-300: 4.8 to 6.2 (medium, slow scaling)
+ * - Score 300+: creeping up from 6.2, capped at 7.5 (challenging but fair)
+ */
+function getSpeedForScore(score) {
+  const initialSpeed = 3.0;
+  
+  if (score <= 30) {
+    return initialSpeed + (score / 30) * 0.3;
+  }
+  if (score <= 50) {
+    return 3.3 + ((score - 30) / 20) * 0.5;
+  }
+  if (score <= 100) {
+    return 3.8 + ((score - 50) / 50) * 1.0;
+  }
+  if (score <= 300) {
+    return 4.8 + ((score - 100) / 200) * 1.4;
+  }
+  // Creeping up to a hard cap of 7.5
+  return 6.2 + Math.min(1.3, (score - 300) * 0.001);
+}
 
 export function useGameEngine() {
   const [phase, setPhase] = useState('START'); // 'START' | 'PLAYING' | 'GAMEOVER'
   const [score, setScore] = useState(0);
   const [bestScore, setBestScore] = useLocalStorage('stackGame_bestScore', 0);
+  
+  // Game statistics
+  const [gamesPlayed, setGamesPlayed] = useLocalStorage('stackGame_gamesPlayed', 0);
+  const [highestCombo, setHighestCombo] = useLocalStorage('stackGame_highestCombo', 0);
+  const [totalBlocksPlaced, setTotalBlocksPlaced] = useLocalStorage('stackGame_totalBlocksPlaced', 0);
+
+  // Gameplay state
+  const [combo, setCombo] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   
   const [blocks, setBlocks] = useState([]);
   const [movingBlock, setMovingBlock] = useState(null);
@@ -27,6 +64,8 @@ export function useGameEngine() {
     score,
     cameraY,
     targetCameraY,
+    isPaused,
+    combo,
   });
 
   // Sync ref with state variables
@@ -41,8 +80,10 @@ export function useGameEngine() {
       score,
       cameraY,
       targetCameraY,
+      isPaused,
+      combo,
     };
-  }, [phase, blocks, movingBlock, fallingBlocks, perfectEffects, speed, score, cameraY, targetCameraY]);
+  }, [phase, blocks, movingBlock, fallingBlocks, perfectEffects, speed, score, cameraY, targetCameraY, isPaused, combo]);
 
   // Reset the game state
   const resetGame = useCallback((nextPhase = 'PLAYING') => {
@@ -59,6 +100,12 @@ export function useGameEngine() {
     setTargetCameraY(0);
     setFallingBlocks([]);
     setPerfectEffects([]);
+    setCombo(0);
+    setIsPaused(false);
+
+    if (nextPhase === 'PLAYING') {
+      setGamesPlayed((prev) => prev + 1);
+    }
     
     // Spawn first moving block
     // Starts from left (-220px offset) moving right
@@ -70,7 +117,7 @@ export function useGameEngine() {
     });
     
     setPhase(nextPhase);
-  }, []);
+  }, [setGamesPlayed]);
 
   // Initialize blocks on mount
   useEffect(() => {
@@ -79,8 +126,16 @@ export function useGameEngine() {
 
   // Handle block drop
   const dropBlock = useCallback((isAutopilot = false) => {
-    const { phase: currentPhase, blocks: currentBlocks, movingBlock: currentMoving, speed: currentSpeed, score: currentScore } = stateRef.current;
+    const { 
+      phase: currentPhase, 
+      blocks: currentBlocks, 
+      movingBlock: currentMoving, 
+      score: currentScore,
+      isPaused: currentIsPaused,
+      combo: currentCombo
+    } = stateRef.current;
     
+    if (currentIsPaused && !isAutopilot) return;
     if (currentPhase !== 'PLAYING' && !isAutopilot) return;
     if (!currentMoving || currentBlocks.length === 0) return;
 
@@ -102,6 +157,9 @@ export function useGameEngine() {
         setPhase('GAMEOVER');
         if (currentScore > bestScore) {
           setBestScore(currentScore);
+          soundManager.playNewRecord();
+        } else {
+          soundManager.playGameOver();
         }
       }
 
@@ -126,12 +184,26 @@ export function useGameEngine() {
     let placedBlockX = overlapLeft;
     let placedBlockWidth = overlapWidth;
     let isPerfect = false;
+    let nextCombo = 0;
 
     if (absDiff <= GAME_CONSTANTS.PERFECT_THRESHOLD) {
       isPerfect = true;
       placedBlockX = topBlock.x;        // Snap perfectly to top block position
       placedBlockWidth = topBlock.width; // Retain full width of top block
       
+      if (!isAutopilot) {
+        nextCombo = currentCombo + 1;
+        setCombo(nextCombo);
+        setHighestCombo((prev) => Math.max(prev, nextCombo));
+        
+        // Sound management placeholder
+        if (nextCombo > 1) {
+          soundManager.playCombo(nextCombo);
+        } else {
+          soundManager.playPerfect();
+        }
+      }
+
       // Perfect placement visual effect centered on the block
       setPerfectEffects((prev) => [
         ...prev,
@@ -143,6 +215,11 @@ export function useGameEngine() {
         },
       ]);
     } else {
+      if (!isAutopilot) {
+        setCombo(0);
+        soundManager.playDrop();
+      }
+
       // Create falling block from cut-off chunk (debris)
       let cutX, cutWidth;
       if (currentMoving.x < topBlock.x) {
@@ -185,10 +262,10 @@ export function useGameEngine() {
       const nextScore = currentScore + scoreGain;
       setScore(nextScore);
 
-      const nextSpeed = Math.min(
-        GAME_CONSTANTS.INITIAL_SPEED + Math.floor(nextScore / GAME_CONSTANTS.SPEED_INCREASE_INTERVAL) * GAME_CONSTANTS.SPEED_INCREASE_DELTA * 10,
-        GAME_CONSTANTS.MAX_SPEED
-      );
+      setTotalBlocksPlaced((prev) => prev + 1);
+
+      // Use the smooth progression difficulty curve
+      const nextSpeed = getSpeedForScore(nextScore);
       setSpeed(nextSpeed);
     } else {
       // Autopilot resets automatically after 12 blocks to stay compact
@@ -212,7 +289,7 @@ export function useGameEngine() {
       direction: -slideSide, // Move in opposite direction toward stack
       hue: nextHue,
     });
-  }, [bestScore, setBestScore, resetGame]);
+  }, [bestScore, setBestScore, resetGame, setHighestCombo, setTotalBlocksPlaced]);
 
   // Main game update loop ran at 60fps
   const updateFrame = useCallback(() => {
@@ -225,12 +302,16 @@ export function useGameEngine() {
       speed: currentSpeed,
       cameraY: currentCamY,
       targetCameraY: currentTargetCamY,
+      isPaused: currentIsPaused,
     } = stateRef.current;
 
-    // 1. Update camera Y interpolation
+    // 1. Update camera Y interpolation (run during pause for visual smoothness)
     if (Math.abs(currentTargetCamY - currentCamY) > 0.1) {
       setCameraY(currentCamY + (currentTargetCamY - currentCamY) * 0.1);
     }
+
+    // Halt gameplay state changes if paused
+    if (currentIsPaused) return;
 
     // 2. Update sliding block
     if (currentMoving && (currentPhase === 'PLAYING' || currentPhase === 'START')) {
@@ -313,6 +394,11 @@ export function useGameEngine() {
     phase,
     score,
     bestScore,
+    gamesPlayed,
+    highestCombo,
+    totalBlocksPlaced,
+    combo,
+    isPaused,
     blocks,
     movingBlock,
     fallingBlocks,
@@ -321,5 +407,8 @@ export function useGameEngine() {
     startGame: () => resetGame('PLAYING'),
     goToMenu: () => resetGame('START'),
     dropBlock: () => dropBlock(false),
+    togglePause: () => setIsPaused((prev) => !prev),
+    setIsPaused,
   };
 }
+

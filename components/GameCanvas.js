@@ -43,9 +43,15 @@ export default function GameCanvas({ blocks, movingBlock, fallingBlocks, perfect
       // 1. Clear viewport
       ctx.clearRect(0, 0, width, height);
 
-      // Center horizontally, lower third vertically
-      const centerX = width / 2;
-      const centerY = height * 0.70;
+      // Calculate responsive scale factor for larger screens (desktop/tablet)
+      const scale = width < 640 ? 1.0 : Math.min(height / 700, width / 500, 1.55);
+
+      ctx.save();
+      ctx.scale(scale, scale);
+
+      // Center horizontally, lower third vertically in the scaled coordinate system
+      const centerX = (width / 2) / scale;
+      const centerY = (height * 0.72) / scale;
 
       const theta = Math.PI / 6; // 30 degrees isometric angle
       const cosTheta = Math.cos(theta);
@@ -206,6 +212,9 @@ export default function GameCanvas({ blocks, movingBlock, fallingBlocks, perfect
         ctx.fillText('PERFECT!', ringCenter.x, ringCenter.y - 30 - progress * 50);
         ctx.restore();
       });
+
+      // Restore responsive scaled context state
+      ctx.restore();
     };
 
     const loop = () => {

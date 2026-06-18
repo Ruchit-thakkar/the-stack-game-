@@ -1,53 +1,105 @@
 import React from 'react';
+import { Play, Trophy, Flame, Layers } from 'lucide-react';
 
 /**
- * StartScreen - Renders the initial landing screen over the canvas autopilot.
+ * StartScreen - Renders the initial landing screen menu with stats.
  */
-export default function StartScreen({ bestScore, onStart }) {
+export default function StartScreen({ bestScore, gamesPlayed, highestCombo, totalBlocksPlaced, onStart }) {
   return (
     <div 
-      className="absolute inset-0 flex flex-col items-center justify-between py-16 px-6 bg-slate-950/45 backdrop-blur-[2px] z-10 select-none animate-fade-in"
-      onClick={onStart} // Clicking anywhere on the screen starts the game
+      className="absolute inset-0 flex items-center justify-center bg-slate-950/40 backdrop-blur-[2px] z-10 select-none animate-fade-in px-4"
+      onClick={onStart} // Clicking anywhere on the backdrop starts the game
     >
-      {/* Title */}
-      <div className="text-center mt-12">
-        <h1 className="text-7xl font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 font-mono select-none drop-shadow-[0_4px_12px_rgba(255,255,255,0.12)]">
-          STACK
-        </h1>
-        <p className="text-slate-400 text-[11px] tracking-[0.25em] mt-3 uppercase font-medium">
-          3D Arcade Block Stacker
-        </p>
-      </div>
-
-      {/* Tap/Click to Start Button */}
-      <button 
-        onClick={(e) => {
-          e.stopPropagation(); // Avoid double triggers from parent onClick
-          onStart();
-        }}
-        className="group relative flex flex-col items-center justify-center p-8 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 transition-all duration-300 backdrop-blur-md cursor-pointer w-48 h-48 select-none focus:outline-none"
+      <div 
+        onClick={(e) => e.stopPropagation()} // Stop propagation so clicks inside the card don't double start
+        className="w-full max-w-md p-8 rounded-3xl border border-white/10 bg-slate-900/35 backdrop-blur-xl shadow-2xl flex flex-col items-center text-center transition-all duration-300"
       >
-        {/* Pulsing ring outline */}
-        <span className="absolute inset-0 rounded-full border border-white/20 scale-100 group-hover:scale-110 animate-ping opacity-15 transition-all duration-700"></span>
-        
-        <span className="text-white text-xl font-bold tracking-widest animate-pulse uppercase">
-          Play
-        </span>
-        <span className="text-slate-400 text-[10px] mt-2 uppercase tracking-[0.15em] font-medium">
-          Tap or Click
-        </span>
-      </button>
+        {/* Title */}
+        <div className="mb-8">
+          <h1 className="text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 font-mono select-none drop-shadow-[0_4px_12px_rgba(255,255,255,0.1)]">
+            STACK
+          </h1>
+          <p className="text-cyan-400 text-[10px] tracking-[0.25em] mt-2.5 uppercase font-black">
+            3D Arcade Block Stacker
+          </p>
+        </div>
 
-      {/* Best Score Indicator */}
-      <div className="text-center">
-        <div className="text-slate-500 text-[10px] tracking-[0.2em] uppercase mb-1 font-semibold">
-          High Score
+        {/* Tap/Click to Start Button */}
+        <button 
+          onClick={onStart}
+          className="group relative flex flex-col items-center justify-center p-6 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-95 transition-all duration-300 shadow-lg shadow-cyan-500/20 cursor-pointer w-36 h-36 select-none focus:outline-none mb-8"
+        >
+          <span className="absolute inset-0 rounded-2xl border border-cyan-400/20 scale-100 group-hover:scale-105 animate-ping opacity-15 transition-all duration-700"></span>
+          <Play className="w-10 h-10 text-white fill-current animate-pulse mb-1.5" />
+          <span className="text-white text-[11px] font-black tracking-widest uppercase">
+            Start Game
+          </span>
+        </button>
+
+        {/* Lifetime Stats Dashboard */}
+        <div className="w-full border-t border-white/10 pt-6">
+          <h3 className="text-slate-500 text-[9px] tracking-[0.2em] uppercase font-black mb-4">
+            Lifetime Stats
+          </h3>
+          
+          <div className="grid grid-cols-2 gap-3 w-full">
+            {/* Best Score */}
+            <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex items-center gap-3">
+              <Trophy className="w-5 h-5 text-amber-400 shrink-0 drop-shadow-[0_0_4px_rgba(245,158,11,0.3)]" />
+              <div className="text-left">
+                <div className="text-[8px] text-slate-500 font-bold uppercase tracking-wider leading-none mb-1">
+                  Best Score
+                </div>
+                <div className="text-base font-black font-mono text-white leading-none">
+                  {bestScore || 0}
+                </div>
+              </div>
+            </div>
+
+            {/* Highest Combo */}
+            <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex items-center gap-3">
+              <Flame className="w-5 h-5 text-orange-400 shrink-0 drop-shadow-[0_0_4px_rgba(249,115,22,0.3)]" />
+              <div className="text-left">
+                <div className="text-[8px] text-slate-500 font-bold uppercase tracking-wider leading-none mb-1">
+                  Max Combo
+                </div>
+                <div className="text-base font-black font-mono text-white leading-none">
+                  {highestCombo || 0}
+                </div>
+              </div>
+            </div>
+
+            {/* Games Played */}
+            <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex items-center gap-3">
+              <Play className="w-5 h-5 text-emerald-400 shrink-0 fill-current drop-shadow-[0_0_4px_rgba(16,185,129,0.3)]" />
+              <div className="text-left">
+                <div className="text-[8px] text-slate-500 font-bold uppercase tracking-wider leading-none mb-1">
+                  Played
+                </div>
+                <div className="text-base font-black font-mono text-white leading-none">
+                  {gamesPlayed || 0}
+                </div>
+              </div>
+            </div>
+
+            {/* Total Blocks Placed */}
+            <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex items-center gap-3">
+              <Layers className="w-5 h-5 text-cyan-400 shrink-0 drop-shadow-[0_0_4px_rgba(34,211,238,0.3)]" />
+              <div className="text-left">
+                <div className="text-[8px] text-slate-500 font-bold uppercase tracking-wider leading-none mb-1">
+                  Blocks
+                </div>
+                <div className="text-base font-black font-mono text-white leading-none">
+                  {totalBlocksPlaced || 0}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="text-4xl font-extrabold font-mono text-cyan-400 drop-shadow-[0_0_12px_rgba(34,211,238,0.35)]">
-          {bestScore}
-        </div>
-        <div className="hidden md:block text-slate-500 text-[9px] tracking-widest mt-5 uppercase">
-          Press <kbd className="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">SPACE</kbd> or <kbd className="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">ENTER</kbd> to drop
+
+        {/* Keyboard tip */}
+        <div className="hidden md:block text-slate-500 text-[9px] tracking-widest mt-6 uppercase">
+          Press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono border border-slate-700">SPACE</kbd> or <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono border border-slate-700">ENTER</kbd> to drop
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import GameCanvas from './GameCanvas';
 import StartScreen from './StartScreen';
 import HUD from './HUD';
 import GameOverScreen from './GameOverScreen';
+import PauseScreen from './PauseScreen';
 
 /**
  * StackGame - The coordinator component.
@@ -14,6 +15,11 @@ export default function StackGame() {
     phase,
     score,
     bestScore,
+    gamesPlayed,
+    highestCombo,
+    totalBlocksPlaced,
+    combo,
+    isPaused,
     blocks,
     movingBlock,
     fallingBlocks,
@@ -22,29 +28,38 @@ export default function StackGame() {
     startGame,
     goToMenu,
     dropBlock,
+    togglePause,
   } = useGameEngine();
 
-  // Desktop keyboard drop triggers
+  // Desktop keyboard drop triggers and pause toggle
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault(); // Prevents spacebar page scroll
-        if (phase === 'PLAYING') {
+        if (phase === 'PLAYING' && !isPaused) {
           dropBlock();
         } else if (phase === 'START') {
           startGame();
+        }
+      } else if (e.code === 'KeyP' || e.code === 'Escape') {
+        if (phase === 'PLAYING') {
+          e.preventDefault();
+          togglePause();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [phase, dropBlock, startGame]);
+  }, [phase, isPaused, dropBlock, startGame, togglePause]);
 
   // Pointer interactions (handles touchstart and mousedown in 1 call, zero latency)
   const handleInteraction = (e) => {
-    // Stop drop logic if interacting with buttons in Start/Gameover screens
+    // Stop drop logic if interacting with buttons in overlays
     if (e.target.closest('button')) return;
+    
+    // Ignore clicks if the game is paused
+    if (isPaused) return;
 
     if (phase === 'PLAYING') {
       dropBlock();
@@ -73,21 +88,44 @@ export default function StackGame() {
 
       {/* Game States Overlays */}
       {phase === 'START' && (
-        <StartScreen bestScore={bestScore} onStart={startGame} />
+        <StartScreen 
+          bestScore={bestScore} 
+          gamesPlayed={gamesPlayed}
+          highestCombo={highestCombo}
+          totalBlocksPlaced={totalBlocksPlaced}
+          onStart={startGame} 
+        />
       )}
 
       {phase === 'PLAYING' && (
-        <HUD score={score} bestScore={bestScore} />
+        <HUD 
+          score={score} 
+          bestScore={bestScore} 
+          combo={combo}
+          onPause={togglePause} 
+        />
       )}
 
       {phase === 'GAMEOVER' && (
         <GameOverScreen 
           score={score} 
           bestScore={bestScore} 
+          highestCombo={highestCombo}
+          totalBlocksPlaced={totalBlocksPlaced}
           onRestart={startGame} 
           onMainMenu={goToMenu} 
+        />
+      )}
+
+      {/* Pause Overlay */}
+      {phase === 'PLAYING' && isPaused && (
+        <PauseScreen 
+          onResume={togglePause}
+          onRestart={startGame}
+          onMainMenu={goToMenu}
         />
       )}
     </div>
   );
 }
+
