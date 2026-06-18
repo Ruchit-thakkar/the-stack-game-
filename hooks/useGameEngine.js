@@ -3,13 +3,8 @@ import { GAME_CONSTANTS } from '../utils/gameConstants';
 import { useLocalStorage } from './useLocalStorage';
 import { soundManager } from '../utils/soundManager';
 
-/**
- * Calculates game speed using a mathematically smooth cubic Hermite spline.
- * This guarantees a C1-continuous difficulty curve (no sudden jumps in acceleration)
- * passing through control points: (0, 3.0) -> (30, 3.3) -> (50, 3.8) -> (100, 4.8) -> (300, 6.2) -> (1000, 7.2).
- */
-function getSpeedForScore(score) {
-  const points = [
+const SPEED_CURVES = {
+  slow: [
     { x: 0, y: 1.2, m: 0.008 },
     { x: 30, y: 1.5, m: 0.015 },
     { x: 50, y: 2.0, m: 0.02 },
@@ -19,7 +14,38 @@ function getSpeedForScore(score) {
     { x: 500, y: 6.8, m: 0.003 },
     { x: 1000, y: 8.0, m: 0.001 },
     { x: 2000, y: 8.5, m: 0.0 }
-  ];
+  ],
+  medium: [
+    { x: 0, y: 1.8, m: 0.01 },
+    { x: 30, y: 2.2, m: 0.018 },
+    { x: 50, y: 2.8, m: 0.022 },
+    { x: 100, y: 4.0, m: 0.016 },
+    { x: 200, y: 5.5, m: 0.011 },
+    { x: 300, y: 6.8, m: 0.007 },
+    { x: 500, y: 7.8, m: 0.004 },
+    { x: 1000, y: 8.8, m: 0.0015 },
+    { x: 2000, y: 9.2, m: 0.0 }
+  ],
+  fast: [
+    { x: 0, y: 2.5, m: 0.014 },
+    { x: 30, y: 3.2, m: 0.022 },
+    { x: 50, y: 4.0, m: 0.028 },
+    { x: 100, y: 5.5, m: 0.02 },
+    { x: 200, y: 7.0, m: 0.014 },
+    { x: 300, y: 8.0, m: 0.009 },
+    { x: 500, y: 9.0, m: 0.005 },
+    { x: 1000, y: 10.0, m: 0.002 },
+    { x: 2000, y: 10.5, m: 0.0 }
+  ]
+};
+
+/**
+ * Calculates game speed using a mathematically smooth cubic Hermite spline.
+ * This guarantees a C1-continuous difficulty curve (no sudden jumps in acceleration)
+ * passing through control points corresponding to the selected speedMode.
+ */
+function getSpeedForScore(score, mode = 'medium') {
+  const points = SPEED_CURVES[mode] || SPEED_CURVES.medium;
 
   if (score <= 0) return points[0].y;
   if (score >= points[points.length - 1].x) {
@@ -51,6 +77,7 @@ export function useGameEngine() {
   const [phase, setPhase] = useState('START'); // 'START' | 'PLAYING' | 'GAMEOVER'
   const [score, setScore] = useState(0);
   const [bestScore, setBestScore] = useLocalStorage('stackGame_bestScore', 0);
+  const [speedMode, setSpeedMode] = useLocalStorage('stackGame_speedMode', 'medium');
 
   // Game statistics
   const [gamesPlayed, setGamesPlayed] = useLocalStorage('stackGame_gamesPlayed', 0);
@@ -66,7 +93,7 @@ export function useGameEngine() {
   const [fallingBlocks, setFallingBlocks] = useState([]);
   const [perfectEffects, setPerfectEffects] = useState([]);
 
-  const [speed, setSpeed] = useState(GAME_CONSTANTS.INITIAL_SPEED);
+  const [speed, setSpeed] = useState(() => getSpeedForScore(0, 'medium'));
   const [cameraY, setCameraY] = useState(0);
   const [targetCameraY, setTargetCameraY] = useState(0);
 
@@ -86,6 +113,13 @@ export function useGameEngine() {
     soundManager.setMuted(isMuted);
   }, [isMuted]);
 
+  // Immediately update the speed when the player changes speedMode in settings
+  useEffect(() => {
+    const nextSpeed = getSpeedForScore(stateRef.current.score, speedMode);
+    setSpeed(nextSpeed);
+    stateRef.current.speed = nextSpeed;
+  }, [speedMode]);
+
   // References for game loop state to avoid react closure stale states in requestAnimationFrame
   const stateRef = useRef({
     phase: 'START',
@@ -93,7 +127,7 @@ export function useGameEngine() {
     movingBlock: null,
     fallingBlocks: [],
     perfectEffects: [],
-    speed: GAME_CONSTANTS.INITIAL_SPEED,
+    speed: getSpeedForScore(0, 'medium'),
     score: 0,
     cameraY: 0,
     targetCameraY: 0,
@@ -114,9 +148,11 @@ export function useGameEngine() {
       autopilotTimeoutRef.current = null;
     }
 
+    const initialSpeed = getSpeedForScore(0, speedMode);
+
     setBlocks([initialBlock]);
     setScore(0);
-    setSpeed(GAME_CONSTANTS.INITIAL_SPEED);
+    setSpeed(initialSpeed);
     setCameraY(0);
     setTargetCameraY(0);
     setFallingBlocks([]);
@@ -145,14 +181,14 @@ export function useGameEngine() {
       movingBlock: nextMoving,
       fallingBlocks: [],
       perfectEffects: [],
-      speed: GAME_CONSTANTS.INITIAL_SPEED,
+      speed: initialSpeed,
       score: 0,
       cameraY: 0,
       targetCameraY: 0,
       isPaused: false,
       combo: 0,
     };
-  }, [setGamesPlayed]);
+  }, [setGamesPlayed, speedMode]);
 
   // Initialize blocks on mount and cleanup timeouts
   useEffect(() => {
@@ -320,7 +356,7 @@ export function useGameEngine() {
       setTotalBlocksPlaced((prev) => prev + 1);
 
       // Use the smooth progression difficulty curve
-      nextSpeed = getSpeedForScore(nextScore);
+      nextSpeed = getSpeedForScore(nextScore, speedMode);
       setSpeed(nextSpeed);
     } else {
       // Autopilot resets automatically after 12 blocks to stay compact
@@ -360,7 +396,7 @@ export function useGameEngine() {
       targetCameraY: newStackHeight,
       combo: isAutopilot ? currentCombo : nextCombo,
     };
-  }, [bestScore, setBestScore, resetGame, setHighestCombo, setTotalBlocksPlaced]);
+  }, [bestScore, setBestScore, resetGame, setHighestCombo, setTotalBlocksPlaced, speedMode]);
 
   // Main game update loop ran at 60fps
   const updateFrame = useCallback(() => {
@@ -515,6 +551,8 @@ export function useGameEngine() {
     combo,
     isPaused,
     isMuted,
+    speedMode,
+    setSpeedMode,
     blocks,
     movingBlock,
     fallingBlocks,

@@ -8,7 +8,7 @@ export default function PauseScreen({ onResume, onRestart, onMainMenu }) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-slate-950/40 backdrop-blur-md z-25 select-none animate-fade-in font-ui">
       <div className="w-full max-w-xs p-8 rounded-[24px] border border-white/5 bg-teal-950/20 backdrop-blur-2xl shadow-2xl flex flex-col items-center text-center">
-        
+
         {/* Header */}
         <h2 className="text-3xl font-black tracking-widest text-stone-200 font-title mb-8">
           PAUSED

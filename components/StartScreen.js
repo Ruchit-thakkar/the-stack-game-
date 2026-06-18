@@ -1,22 +1,22 @@
 import React from 'react';
-import { Play, Trophy, Flame, Layers, Volume2, VolumeX } from 'lucide-react';
+import { Play, Trophy, Flame, Layers, Volume2, VolumeX, Settings } from 'lucide-react';
 
 /**
  * StartScreen - Renders the initial landing screen menu with stats.
  */
-export default function StartScreen({ bestScore, gamesPlayed, highestCombo, totalBlocksPlaced, onStart, isMuted, onToggleMute }) {
+export default function StartScreen({ bestScore, gamesPlayed, highestCombo, totalBlocksPlaced, onStart, isMuted, onToggleMute, onOpenSettings }) {
   const bestVal = bestScore || 0;
   const comboVal = highestCombo || 0;
   const gamesVal = gamesPlayed || 0;
   const blocksVal = totalBlocksPlaced || 0;
 
   return (
-    <div 
+    <div
       className="absolute inset-0 flex items-center justify-center bg-slate-950/10 backdrop-blur-[1px] z-10 select-none overflow-hidden pb-safe px-4 py-6 sm:py-8 md:py-10"
     >
-      {/* Top Right: Volume Settings */}
-      <div className="absolute top-6 right-6 z-20 pointer-events-auto">
-        <button 
+      {/* Top Right: Volume + Settings Buttons */}
+      <div className="absolute top-6 right-6 z-20 pointer-events-auto flex items-center gap-2">
+        <button
           onClick={(e) => {
             e.stopPropagation();
             onToggleMute();
@@ -26,7 +26,18 @@ export default function StartScreen({ bestScore, gamesPlayed, highestCombo, tota
         >
           {isMuted ? <VolumeX className="w-4.5 h-4.5" /> : <Volume2 className="w-4.5 h-4.5" />}
         </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenSettings();
+          }}
+          aria-label="Open settings"
+          className="flex items-center justify-center w-10 h-10 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 active:scale-95 transition-all duration-300 text-stone-300 focus:outline-none"
+        >
+          <Settings className="w-4.5 h-4.5" />
+        </button>
       </div>
+
       {/* Living Atmospheric Background (moving stars, fog, drifts) */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
         {/* Calm slow-moving volumetric blobs */}
@@ -47,15 +58,15 @@ export default function StartScreen({ bestScore, gamesPlayed, highestCombo, tota
       </div>
 
       {/* Main Glass Panel */}
-      <div 
+      <div
         onClick={(e) => e.stopPropagation()} // Stop click propagation inside the card
         className="w-full max-w-[92%] sm:max-w-[500px] md:max-w-[720px] lg:max-w-[800px] p-5 sm:p-8 md:py-6 md:px-10 rounded-[28px] sm:rounded-[36px] border border-white/5 bg-teal-950/10 backdrop-blur-2xl shadow-2xl flex flex-col items-center justify-between text-center transition-all duration-500"
       >
         {/* Title Section */}
         <div className="mb-4 sm:mb-6 md:mb-5 flex flex-col items-center">
-          <img 
-            src="https://ik.imagekit.io/devnext/stackgamelogo.png" 
-            alt="STACK Logo" 
+          <img
+            src="https://ik.imagekit.io/devnext/stackgamelogo.png"
+            alt="STACK Logo"
             className="w-20 h-20 sm:w-26 sm:h-26 md:w-28 md:h-28 object-contain select-none filter drop-shadow-[0_6px_20px_rgba(20,184,166,0.3)] mb-3 sm:mb-4 md:mb-4"
           />
           <h1 className="font-clamp-title font-black tracking-[0.3em] text-stone-100 font-title select-none drop-shadow-[0_2px_10px_rgba(255,255,255,0.05)] leading-none">
@@ -71,7 +82,7 @@ export default function StartScreen({ bestScore, gamesPlayed, highestCombo, tota
         </div>
 
         {/* Elegant Play Button */}
-        <button 
+        <button
           onClick={onStart}
           className="glass-button-gradient group relative my-4 sm:my-5 px-12 sm:px-16 py-3 rounded-[20px] sm:rounded-[24px] cursor-pointer flex items-center justify-center gap-3 select-none focus:outline-none"
         >

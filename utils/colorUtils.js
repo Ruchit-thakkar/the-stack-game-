@@ -18,7 +18,7 @@ export function getBlockColors(hue) {
   const baseHue = 130;
   const range = 80;
   const h = baseHue + (((hue - 180) % range + range) % range);
-  
+
   return {
     top: `hsl(${h}, 36%, 58%)`,   // Matte pastel top
     left: `hsl(${h}, 32%, 46%)`,  // Left face
