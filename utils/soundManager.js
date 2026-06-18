@@ -6,9 +6,13 @@
 
 let audioCtx = null;
 let isMuted = false;
-let masterVolume = 0.5;
-let effectsVolume = 0.8;
-let musicVolume = 0.3;
+let masterVolume = 0.9;
+let effectsVolume = 1.0;
+let musicVolume = 0.85;
+
+// Easily replaceable background audio file path
+const AMBIENCE_FILE = '/audio/background.mp3';
+let musicAudio = null;
 
 const audioCache = {};
 
@@ -175,20 +179,20 @@ const synthesizers = {
     notes.forEach((freq, idx) => {
       const startTime = currentTime + idx * 0.12;
       const duration = 0.75;
-      
+
       const osc = ctx.createOscillator();
       const gainNode = ctx.createGain();
-      
+
       osc.type = 'triangle'; // Soft triangle wave
       osc.frequency.setValueAtTime(freq, startTime);
-      
+
       gainNode.gain.setValueAtTime(0.0, currentTime);
       gainNode.gain.setValueAtTime(effectsVolume * masterVolume * 0.22, startTime);
       gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-      
+
       osc.connect(gainNode);
       gainNode.connect(ctx.destination);
-      
+
       osc.start(startTime);
       osc.stop(startTime + duration + 0.05);
     });
@@ -294,6 +298,9 @@ const synthesizers = {
 export const soundManager = {
   setMuted: (muted) => {
     isMuted = muted;
+    if (musicAudio) {
+      musicAudio.muted = muted;
+    }
     if (muted) {
       soundManager.stopAmbience();
     } else {
@@ -303,6 +310,9 @@ export const soundManager = {
 
   setMasterVolume: (vol) => {
     masterVolume = Math.max(0, Math.min(1, vol));
+    if (musicAudio) {
+      musicAudio.volume = masterVolume * musicVolume;
+    }
   },
 
   setEffectsVolume: (vol) => {
@@ -311,11 +321,14 @@ export const soundManager = {
 
   setMusicVolume: (vol) => {
     musicVolume = Math.max(0, Math.min(1, vol));
+    if (musicAudio) {
+      musicAudio.volume = masterVolume * musicVolume;
+    }
     if (audioCtx) {
       activeAmbienceNodes.forEach(node => {
         try {
           node.gainNode.gain.setValueAtTime(musicVolume * masterVolume * 0.04, audioCtx.currentTime);
-        } catch (e) {}
+        } catch (e) { }
       });
     }
   },
@@ -347,6 +360,40 @@ export const soundManager = {
   },
 
   startAmbience: () => {
+    if (typeof window === 'undefined') return;
+    if (isMuted) return;
+
+    if (!musicAudio) {
+      musicAudio = new Audio(AMBIENCE_FILE);
+      musicAudio.loop = true;
+      musicAudio.preload = 'auto';
+
+      // Fallback if the MP3 is missing or fails to play
+      musicAudio.onerror = () => {
+        console.warn("Vocal/Ambient background music failed to load. Falling back to synthesized ambient chords.");
+        soundManager.startSynthesizedAmbience();
+      };
+    }
+
+    musicAudio.volume = masterVolume * musicVolume;
+    musicAudio.muted = isMuted;
+
+    musicAudio.play().catch(err => {
+      console.warn("Autoplay blocked background music, trying synthesized ambience fallback.", err);
+      soundManager.startSynthesizedAmbience();
+    });
+  },
+
+  stopAmbience: () => {
+    if (musicAudio) {
+      try {
+        musicAudio.pause();
+      } catch (e) {}
+    }
+    soundManager.stopSynthesizedAmbience();
+  },
+
+  startSynthesizedAmbience: () => {
     const ctx = getAudioContext();
     if (!ctx || isMuted || ambienceInterval) return;
 
@@ -410,7 +457,7 @@ export const soundManager = {
     ambienceInterval = setInterval(playNextChord, 6000);
   },
 
-  stopAmbience: () => {
+  stopSynthesizedAmbience: () => {
     if (ambienceInterval) {
       clearInterval(ambienceInterval);
       ambienceInterval = null;
@@ -418,7 +465,7 @@ export const soundManager = {
     activeAmbienceNodes.forEach(node => {
       try {
         node.osc.stop();
-      } catch (e) {}
+      } catch (e) { }
     });
     activeAmbienceNodes = [];
   }

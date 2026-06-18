@@ -10,7 +10,7 @@ import { soundManager } from '../utils/soundManager';
  */
 function getSpeedForScore(score) {
   const points = [
-    { x: 0, y: 1.0, m: 0.008 },
+    { x: 0, y: 1.2, m: 0.008 },
     { x: 30, y: 1.5, m: 0.015 },
     { x: 50, y: 2.0, m: 0.02 },
     { x: 100, y: 3.0, m: 0.015 },

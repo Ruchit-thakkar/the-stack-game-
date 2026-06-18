@@ -49,9 +49,9 @@ export default function GameCanvas({ blocks, movingBlock, fallingBlocks, perfect
       ctx.save();
       ctx.scale(scale, scale);
 
-      // Center horizontally, lower third vertically in the scaled coordinate system
+      // Center horizontally and vertically in the scaled coordinate system
       const centerX = (width / 2) / scale;
-      const centerY = (height * 0.72) / scale;
+      const centerY = (height * 0.5) / scale;
 
       const theta = Math.PI / 6; // 30 degrees isometric angle
       const cosTheta = Math.cos(theta);
