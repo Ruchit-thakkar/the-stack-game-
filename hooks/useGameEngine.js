@@ -78,6 +78,8 @@ export function useGameEngine() {
   const [score, setScore] = useState(0);
   const [bestScore, setBestScore] = useLocalStorage('stackGame_bestScore', 0);
   const [speedMode, setSpeedMode] = useLocalStorage('stackGame_speedMode', 'medium');
+  const [effectsVolume, setEffectsVolume] = useLocalStorage('stackGame_effectsVolume', 1.0);
+  const [musicVolume, setMusicVolume] = useLocalStorage('stackGame_musicVolume', 0.85);
 
   // Game statistics
   const [gamesPlayed, setGamesPlayed] = useLocalStorage('stackGame_gamesPlayed', 0);
@@ -112,6 +114,16 @@ export function useGameEngine() {
   useEffect(() => {
     soundManager.setMuted(isMuted);
   }, [isMuted]);
+
+  // Apply effectsVolume changes to soundManager immediately
+  useEffect(() => {
+    soundManager.setEffectsVolume(effectsVolume);
+  }, [effectsVolume]);
+
+  // Apply musicVolume changes to soundManager immediately
+  useEffect(() => {
+    soundManager.setMusicVolume(musicVolume);
+  }, [musicVolume]);
 
   // Immediately update the speed when the player changes speedMode in settings
   useEffect(() => {
@@ -553,6 +565,10 @@ export function useGameEngine() {
     isMuted,
     speedMode,
     setSpeedMode,
+    effectsVolume,
+    setEffectsVolume,
+    musicVolume,
+    setMusicVolume,
     blocks,
     movingBlock,
     fallingBlocks,

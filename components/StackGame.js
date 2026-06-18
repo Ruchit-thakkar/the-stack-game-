@@ -25,6 +25,10 @@ export default function StackGame() {
     isMuted,
     speedMode,
     setSpeedMode,
+    effectsVolume,
+    setEffectsVolume,
+    musicVolume,
+    setMusicVolume,
     blocks,
     movingBlock,
     fallingBlocks,
@@ -208,6 +212,10 @@ export default function StackGame() {
           onClose={handleCloseSettings}
           speedMode={speedMode}
           onSetSpeedMode={setSpeedMode}
+          effectsVolume={effectsVolume}
+          onSetEffectsVolume={setEffectsVolume}
+          musicVolume={musicVolume}
+          onSetMusicVolume={setMusicVolume}
         />
       )}
     </div>
