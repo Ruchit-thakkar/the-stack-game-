@@ -10,12 +10,15 @@ import { soundManager } from '../utils/soundManager';
  */
 function getSpeedForScore(score) {
   const points = [
-    { x: 0, y: 3.0, m: 0.005 },
-    { x: 30, y: 3.3, m: 0.015 },
-    { x: 50, y: 3.8, m: 0.022 },
-    { x: 100, y: 4.8, m: 0.014 },
-    { x: 300, y: 6.2, m: 0.0035 },
-    { x: 1000, y: 7.2, m: 0.0005 }
+    { x: 0, y: 1.0, m: 0.008 },
+    { x: 30, y: 1.5, m: 0.015 },
+    { x: 50, y: 2.0, m: 0.02 },
+    { x: 100, y: 3.0, m: 0.015 },
+    { x: 200, y: 4.5, m: 0.01 },
+    { x: 300, y: 5.8, m: 0.006 },
+    { x: 500, y: 6.8, m: 0.003 },
+    { x: 1000, y: 8.0, m: 0.001 },
+    { x: 2000, y: 8.5, m: 0.0 }
   ];
 
   if (score <= 0) return points[0].y;
@@ -25,13 +28,13 @@ function getSpeedForScore(score) {
 
   // Find the active segment
   let i = 0;
-  while (i < points.length - 1 && score > points[i+1].x) {
+  while (i < points.length - 1 && score > points[i + 1].x) {
     i++;
   }
 
   const pA = points[i];
-  const pB = points[i+1];
-  
+  const pB = points[i + 1];
+
   const h = pB.x - pA.x;
   const t = (score - pA.x) / h;
 
@@ -48,7 +51,7 @@ export function useGameEngine() {
   const [phase, setPhase] = useState('START'); // 'START' | 'PLAYING' | 'GAMEOVER'
   const [score, setScore] = useState(0);
   const [bestScore, setBestScore] = useLocalStorage('stackGame_bestScore', 0);
-  
+
   // Game statistics
   const [gamesPlayed, setGamesPlayed] = useLocalStorage('stackGame_gamesPlayed', 0);
   const [highestCombo, setHighestCombo] = useLocalStorage('stackGame_highestCombo', 0);
@@ -57,12 +60,12 @@ export function useGameEngine() {
   // Gameplay state
   const [combo, setCombo] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  
+
   const [blocks, setBlocks] = useState([]);
   const [movingBlock, setMovingBlock] = useState(null);
   const [fallingBlocks, setFallingBlocks] = useState([]);
   const [perfectEffects, setPerfectEffects] = useState([]);
-  
+
   const [speed, setSpeed] = useState(GAME_CONSTANTS.INITIAL_SPEED);
   const [cameraY, setCameraY] = useState(0);
   const [targetCameraY, setTargetCameraY] = useState(0);
@@ -91,7 +94,7 @@ export function useGameEngine() {
       width: GAME_CONSTANTS.BASE_WIDTH,
       hue: GAME_CONSTANTS.HUE_START,
     };
-    
+
     if (autopilotTimeoutRef.current) {
       clearTimeout(autopilotTimeoutRef.current);
       autopilotTimeoutRef.current = null;
@@ -110,7 +113,7 @@ export function useGameEngine() {
     if (nextPhase === 'PLAYING') {
       setGamesPlayed((prev) => prev + 1);
     }
-    
+
     const nextMoving = {
       x: -220,
       width: GAME_CONSTANTS.BASE_WIDTH,
@@ -118,7 +121,7 @@ export function useGameEngine() {
       hue: GAME_CONSTANTS.HUE_START + GAME_CONSTANTS.HUE_STEP,
     };
     setMovingBlock(nextMoving);
-    
+
     setPhase(nextPhase);
 
     // Sync ref synchronously to avoid animation frame race conditions
@@ -149,10 +152,10 @@ export function useGameEngine() {
 
   // Handle block drop
   const dropBlock = useCallback((isAutopilot = false) => {
-    const { 
-      phase: currentPhase, 
-      blocks: currentBlocks, 
-      movingBlock: currentMoving, 
+    const {
+      phase: currentPhase,
+      blocks: currentBlocks,
+      movingBlock: currentMoving,
       score: currentScore,
       isPaused: currentIsPaused,
       combo: currentCombo,
@@ -160,7 +163,7 @@ export function useGameEngine() {
       fallingBlocks: currentFalling,
       perfectEffects: currentPerfects,
     } = stateRef.current;
-    
+
     if (currentIsPaused && !isAutopilot) return;
     if (currentPhase !== 'PLAYING' && !isAutopilot) return;
     if (!currentMoving || currentBlocks.length === 0) return;
@@ -229,12 +232,12 @@ export function useGameEngine() {
       isPerfect = true;
       placedBlockX = topBlock.x;        // Snap perfectly to top block position
       placedBlockWidth = topBlock.width; // Retain full width of top block
-      
+
       if (!isAutopilot) {
         nextCombo = currentCombo + 1;
         setCombo(nextCombo);
         setHighestCombo((prev) => Math.max(prev, nextCombo));
-        
+
         // Sound management placeholder
         if (nextCombo > 1) {
           soundManager.playCombo(nextCombo);
@@ -399,11 +402,11 @@ export function useGameEngine() {
           let offset = 0;
           if (Math.random() > 0.4) {
             const side = Math.random() > 0.5 ? 1 : -1;
-            offset = side * (4 + Math.random() * 8); 
+            offset = side * (4 + Math.random() * 8);
           }
-          
+
           nextX = topBlock.x + offset;
-          
+
           // Safeguard: Ensure the offset does not reduce the block width below 40px,
           // so it never falls off completely in the background loop.
           const hypotheticalOverlap = currentMoving.width - Math.abs(offset);
