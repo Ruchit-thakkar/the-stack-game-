@@ -67,37 +67,22 @@ export function useGameEngine() {
   const [cameraY, setCameraY] = useState(0);
   const [targetCameraY, setTargetCameraY] = useState(0);
 
+  const autopilotTimeoutRef = useRef(null);
+
   // References for game loop state to avoid react closure stale states in requestAnimationFrame
   const stateRef = useRef({
-    phase,
-    blocks,
-    movingBlock,
-    fallingBlocks,
-    perfectEffects,
-    speed,
-    score,
-    cameraY,
-    targetCameraY,
-    isPaused,
-    combo,
+    phase: 'START',
+    blocks: [],
+    movingBlock: null,
+    fallingBlocks: [],
+    perfectEffects: [],
+    speed: GAME_CONSTANTS.INITIAL_SPEED,
+    score: 0,
+    cameraY: 0,
+    targetCameraY: 0,
+    isPaused: false,
+    combo: 0,
   });
-
-  // Sync ref with state variables
-  useEffect(() => {
-    stateRef.current = {
-      phase,
-      blocks,
-      movingBlock,
-      fallingBlocks,
-      perfectEffects,
-      speed,
-      score,
-      cameraY,
-      targetCameraY,
-      isPaused,
-      combo,
-    };
-  }, [phase, blocks, movingBlock, fallingBlocks, perfectEffects, speed, score, cameraY, targetCameraY, isPaused, combo]);
 
   // Reset the game state
   const resetGame = useCallback((nextPhase = 'PLAYING') => {
@@ -107,6 +92,11 @@ export function useGameEngine() {
       hue: GAME_CONSTANTS.HUE_START,
     };
     
+    if (autopilotTimeoutRef.current) {
+      clearTimeout(autopilotTimeoutRef.current);
+      autopilotTimeoutRef.current = null;
+    }
+
     setBlocks([initialBlock]);
     setScore(0);
     setSpeed(GAME_CONSTANTS.INITIAL_SPEED);
@@ -121,21 +111,40 @@ export function useGameEngine() {
       setGamesPlayed((prev) => prev + 1);
     }
     
-    // Spawn first moving block
-    // Starts from left (-220px offset) moving right
-    setMovingBlock({
+    const nextMoving = {
       x: -220,
       width: GAME_CONSTANTS.BASE_WIDTH,
       direction: 1, // 1 = right, -1 = left
       hue: GAME_CONSTANTS.HUE_START + GAME_CONSTANTS.HUE_STEP,
-    });
+    };
+    setMovingBlock(nextMoving);
     
     setPhase(nextPhase);
+
+    // Sync ref synchronously to avoid animation frame race conditions
+    stateRef.current = {
+      phase: nextPhase,
+      blocks: [initialBlock],
+      movingBlock: nextMoving,
+      fallingBlocks: [],
+      perfectEffects: [],
+      speed: GAME_CONSTANTS.INITIAL_SPEED,
+      score: 0,
+      cameraY: 0,
+      targetCameraY: 0,
+      isPaused: false,
+      combo: 0,
+    };
   }, [setGamesPlayed]);
 
-  // Initialize blocks on mount
+  // Initialize blocks on mount and cleanup timeouts
   useEffect(() => {
     resetGame('START');
+    return () => {
+      if (autopilotTimeoutRef.current) {
+        clearTimeout(autopilotTimeoutRef.current);
+      }
+    };
   }, [resetGame]);
 
   // Handle block drop
@@ -146,7 +155,10 @@ export function useGameEngine() {
       movingBlock: currentMoving, 
       score: currentScore,
       isPaused: currentIsPaused,
-      combo: currentCombo
+      combo: currentCombo,
+      speed: currentSpeed,
+      fallingBlocks: currentFalling,
+      perfectEffects: currentPerfects,
     } = stateRef.current;
     
     if (currentIsPaused && !isAutopilot) return;
@@ -162,12 +174,18 @@ export function useGameEngine() {
     const overlapRight = Math.min(currentMoving.x + currentMoving.width, topBlock.x + topBlock.width);
     const overlapWidth = overlapRight - overlapLeft;
 
+    let nextPhase = currentPhase;
+    let nextFalling = [...currentFalling];
+    let nextPerfectEffects = [...currentPerfects];
+
     if (overlapWidth <= 0) {
       // Game Over: zero overlap
       if (isAutopilot) {
+        if (autopilotTimeoutRef.current) clearTimeout(autopilotTimeoutRef.current);
         // In autopilot, restart the demo after a short delay
-        setTimeout(() => resetGame('START'), 1500);
+        autopilotTimeoutRef.current = setTimeout(() => resetGame('START'), 1500);
       } else {
+        nextPhase = 'GAMEOVER';
         setPhase('GAMEOVER');
         if (currentScore > bestScore) {
           setBestScore(currentScore);
@@ -178,20 +196,27 @@ export function useGameEngine() {
       }
 
       // Drop the entire moving block as a falling block
-      setFallingBlocks((prev) => [
-        ...prev,
-        {
-          x: currentMoving.x,
-          y: currentBlocks.length * GAME_CONSTANTS.BLOCK_HEIGHT,
-          width: currentMoving.width,
-          depth: GAME_CONSTANTS.BLOCK_DEPTH,
-          hue: currentMoving.hue,
-          velocityY: 0,
-          rotation: 0,
-          rotationSpeed: (Math.random() - 0.5) * 0.06,
-        },
-      ]);
+      const newFallingBlock = {
+        x: currentMoving.x,
+        y: currentBlocks.length * GAME_CONSTANTS.BLOCK_HEIGHT,
+        width: currentMoving.width,
+        depth: GAME_CONSTANTS.BLOCK_DEPTH,
+        hue: currentMoving.hue,
+        velocityY: 0,
+        rotation: 0,
+        rotationSpeed: (Math.random() - 0.5) * 0.06,
+      };
+      nextFalling.push(newFallingBlock);
+      setFallingBlocks(nextFalling);
       setMovingBlock(null);
+
+      // Sync stateRef.current synchronously!
+      stateRef.current = {
+        ...stateRef.current,
+        phase: nextPhase,
+        movingBlock: null,
+        fallingBlocks: nextFalling,
+      };
       return;
     }
 
@@ -219,15 +244,14 @@ export function useGameEngine() {
       }
 
       // Perfect placement visual effect centered on the block
-      setPerfectEffects((prev) => [
-        ...prev,
-        {
-          x: placedBlockX + placedBlockWidth / 2,
-          y: (currentBlocks.length + 1) * GAME_CONSTANTS.BLOCK_HEIGHT,
-          life: 0,
-          maxLife: 24, // Frames (~400ms)
-        },
-      ]);
+      const newPerfectEffect = {
+        x: placedBlockX + placedBlockWidth / 2,
+        y: (currentBlocks.length + 1) * GAME_CONSTANTS.BLOCK_HEIGHT,
+        life: 0,
+        maxLife: 24, // Frames (~400ms)
+      };
+      nextPerfectEffects.push(newPerfectEffect);
+      setPerfectEffects(nextPerfectEffects);
     } else {
       if (!isAutopilot) {
         setCombo(0);
@@ -246,19 +270,18 @@ export function useGameEngine() {
         cutWidth = (currentMoving.x + currentMoving.width) - (topBlock.x + topBlock.width);
       }
 
-      setFallingBlocks((prev) => [
-        ...prev,
-        {
-          x: cutX,
-          y: currentBlocks.length * GAME_CONSTANTS.BLOCK_HEIGHT,
-          width: cutWidth,
-          depth: GAME_CONSTANTS.BLOCK_DEPTH,
-          hue: currentMoving.hue,
-          velocityY: 0,
-          rotation: 0,
-          rotationSpeed: (currentMoving.x < topBlock.x ? -1 : 1) * (0.02 + Math.random() * 0.04),
-        },
-      ]);
+      const newFallingBlock = {
+        x: cutX,
+        y: currentBlocks.length * GAME_CONSTANTS.BLOCK_HEIGHT,
+        width: cutWidth,
+        depth: GAME_CONSTANTS.BLOCK_DEPTH,
+        hue: currentMoving.hue,
+        velocityY: 0,
+        rotation: 0,
+        rotationSpeed: (currentMoving.x < topBlock.x ? -1 : 1) * (0.02 + Math.random() * 0.04),
+      };
+      nextFalling.push(newFallingBlock);
+      setFallingBlocks(nextFalling);
     }
 
     const placedBlock = {
@@ -271,20 +294,23 @@ export function useGameEngine() {
     setBlocks(nextBlocks);
 
     // Update scoring and speed curves
+    let nextScore = currentScore;
+    let nextSpeed = currentSpeed;
     if (!isAutopilot) {
       const scoreGain = isPerfect ? 2 : 1;
-      const nextScore = currentScore + scoreGain;
+      nextScore = currentScore + scoreGain;
       setScore(nextScore);
 
       setTotalBlocksPlaced((prev) => prev + 1);
 
       // Use the smooth progression difficulty curve
-      const nextSpeed = getSpeedForScore(nextScore);
+      nextSpeed = getSpeedForScore(nextScore);
       setSpeed(nextSpeed);
     } else {
       // Autopilot resets automatically after 12 blocks to stay compact
       if (nextBlocks.length >= 12) {
-        setTimeout(() => resetGame('START'), 1500);
+        if (autopilotTimeoutRef.current) clearTimeout(autopilotTimeoutRef.current);
+        autopilotTimeoutRef.current = setTimeout(() => resetGame('START'), 1500);
       }
     }
 
@@ -297,12 +323,27 @@ export function useGameEngine() {
     const slideSide = Math.random() > 0.5 ? 1 : -1;
     const nextSpawnX = placedBlockX + slideSide * 240;
 
-    setMovingBlock({
+    const nextMoving = {
       x: nextSpawnX,
       width: placedBlockWidth,
       direction: -slideSide, // Move in opposite direction toward stack
       hue: nextHue,
-    });
+    };
+    setMovingBlock(nextMoving);
+
+    // Sync stateRef.current synchronously!
+    stateRef.current = {
+      ...stateRef.current,
+      phase: nextPhase,
+      blocks: nextBlocks,
+      movingBlock: nextMoving,
+      fallingBlocks: nextFalling,
+      perfectEffects: nextPerfectEffects,
+      score: nextScore,
+      speed: nextSpeed,
+      targetCameraY: newStackHeight,
+      combo: isAutopilot ? currentCombo : nextCombo,
+    };
   }, [bestScore, setBestScore, resetGame, setHighestCombo, setTotalBlocksPlaced]);
 
   // Main game update loop ran at 60fps
@@ -320,8 +361,11 @@ export function useGameEngine() {
     } = stateRef.current;
 
     // 1. Update camera Y interpolation (run during pause for visual smoothness)
+    let nextCamY = currentCamY;
     if (Math.abs(currentTargetCamY - currentCamY) > 0.1) {
-      setCameraY(currentCamY + (currentTargetCamY - currentCamY) * 0.1);
+      nextCamY = currentCamY + (currentTargetCamY - currentCamY) * 0.1;
+      setCameraY(nextCamY);
+      stateRef.current.cameraY = nextCamY;
     }
 
     // Halt gameplay state changes if paused
@@ -345,11 +389,14 @@ export function useGameEngine() {
         nextDirection = 1;
       }
 
-      setMovingBlock({
+      const nextMoving = {
         ...currentMoving,
         x: nextX,
         direction: nextDirection,
-      });
+      };
+
+      setMovingBlock(nextMoving);
+      stateRef.current.movingBlock = nextMoving;
 
       // Autopilot trigger: drop block when close to center
       if (currentPhase === 'START') {
@@ -373,9 +420,10 @@ export function useGameEngine() {
           rotation: fb.rotation + fb.rotationSpeed,
         }))
         // Filter out blocks that have fallen past the screen (e.g. 500px below camera position)
-        .filter((fb) => fb.y > currentCamY - 400);
+        .filter((fb) => fb.y > nextCamY - 400);
 
       setFallingBlocks(nextFalling);
+      stateRef.current.fallingBlocks = nextFalling;
     }
 
     // 4. Update perfect ring effects life
@@ -388,6 +436,7 @@ export function useGameEngine() {
         .filter((pe) => pe.life < pe.maxLife);
 
       setPerfectEffects(nextPerfects);
+      stateRef.current.perfectEffects = nextPerfects;
     }
   }, [dropBlock]);
 
@@ -403,6 +452,19 @@ export function useGameEngine() {
     animationFrameId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animationFrameId);
   }, [updateFrame]);
+
+  const togglePause = useCallback(() => {
+    setIsPaused((prev) => {
+      const next = !prev;
+      stateRef.current.isPaused = next;
+      return next;
+    });
+  }, []);
+
+  const setPaused = useCallback((val) => {
+    setIsPaused(val);
+    stateRef.current.isPaused = val;
+  }, []);
 
   return {
     phase,
@@ -421,8 +483,8 @@ export function useGameEngine() {
     startGame: () => resetGame('PLAYING'),
     goToMenu: () => resetGame('START'),
     dropBlock: () => dropBlock(false),
-    togglePause: () => setIsPaused((prev) => !prev),
-    setIsPaused,
+    togglePause,
+    setIsPaused: setPaused,
   };
 }
 
