@@ -71,11 +71,8 @@ export default function StackGame() {
       className="relative w-full h-full select-none flex flex-col justify-end overflow-hidden outline-none touch-none"
       onPointerDown={handleInteraction}
     >
-      {/* Dark premium gradient backgrounds */}
-      <div className="absolute inset-0 bg-gradient-to-b from-indigo-950 via-slate-900 to-black -z-20"></div>
-
-      {/* Subtle depth matrix dots */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.015)_1.5px,transparent_1.5px)] bg-[size:24px_24px] opacity-70 -z-10 pointer-events-none"></div>
+      {/* Deep calm teal-stone gradients inspired by Alto's Odyssey / Monument Valley */}
+      <div className="absolute inset-0 bg-gradient-to-b from-teal-950 via-[#032424] to-stone-950 -z-20"></div>
 
       {/* Isometric Canvas */}
       <GameCanvas 

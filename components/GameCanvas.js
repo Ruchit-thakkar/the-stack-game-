@@ -190,10 +190,8 @@ export default function GameCanvas({ blocks, movingBlock, fallingBlocks, perfect
         const scale = 1 + progress * 2.2;
 
         ctx.save();
-        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.8})`;
-        ctx.lineWidth = 4;
-        ctx.shadowColor = '#FFD700';
-        ctx.shadowBlur = 18;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.75})`;
+        ctx.lineWidth = 2.5;
 
         ctx.beginPath();
         ctx.ellipse(
@@ -204,12 +202,10 @@ export default function GameCanvas({ blocks, movingBlock, fallingBlocks, perfect
         );
         ctx.stroke();
 
-        ctx.fillStyle = `rgba(255, 215, 0, ${opacity})`;
-        ctx.font = 'bold 20px monospace';
+        ctx.fillStyle = `rgba(245, 245, 244, ${opacity})`;
+        ctx.font = '700 16px "Space Grotesk", sans-serif';
         ctx.textAlign = 'center';
-        ctx.shadowColor = '#FFD700';
-        ctx.shadowBlur = 8;
-        ctx.fillText('PERFECT!', ringCenter.x, ringCenter.y - 30 - progress * 50);
+        ctx.fillText('PERFECT', ringCenter.x, ringCenter.y - 32 - progress * 40);
         ctx.restore();
       });
 

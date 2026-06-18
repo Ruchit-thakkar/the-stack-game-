@@ -4,30 +4,44 @@ import { useLocalStorage } from './useLocalStorage';
 import { soundManager } from '../utils/soundManager';
 
 /**
- * Calculates game speed based on the desired difficulty curve:
- * - Score 0-30: 3.0 to 3.3 (extremely slow, beginner-friendly)
- * - Score 30-50: 3.3 to 3.8 (slight increase)
- * - Score 50-100: 3.8 to 4.8 (gradual move to medium)
- * - Score 100-300: 4.8 to 6.2 (medium, slow scaling)
- * - Score 300+: creeping up from 6.2, capped at 7.5 (challenging but fair)
+ * Calculates game speed using a mathematically smooth cubic Hermite spline.
+ * This guarantees a C1-continuous difficulty curve (no sudden jumps in acceleration)
+ * passing through control points: (0, 3.0) -> (30, 3.3) -> (50, 3.8) -> (100, 4.8) -> (300, 6.2) -> (1000, 7.2).
  */
 function getSpeedForScore(score) {
-  const initialSpeed = 3.0;
+  const points = [
+    { x: 0, y: 3.0, m: 0.005 },
+    { x: 30, y: 3.3, m: 0.015 },
+    { x: 50, y: 3.8, m: 0.022 },
+    { x: 100, y: 4.8, m: 0.014 },
+    { x: 300, y: 6.2, m: 0.0035 },
+    { x: 1000, y: 7.2, m: 0.0005 }
+  ];
+
+  if (score <= 0) return points[0].y;
+  if (score >= points[points.length - 1].x) {
+    return points[points.length - 1].y + (score - points[points.length - 1].x) * points[points.length - 1].m;
+  }
+
+  // Find the active segment
+  let i = 0;
+  while (i < points.length - 1 && score > points[i+1].x) {
+    i++;
+  }
+
+  const pA = points[i];
+  const pB = points[i+1];
   
-  if (score <= 30) {
-    return initialSpeed + (score / 30) * 0.3;
-  }
-  if (score <= 50) {
-    return 3.3 + ((score - 30) / 20) * 0.5;
-  }
-  if (score <= 100) {
-    return 3.8 + ((score - 50) / 50) * 1.0;
-  }
-  if (score <= 300) {
-    return 4.8 + ((score - 100) / 200) * 1.4;
-  }
-  // Creeping up to a hard cap of 7.5
-  return 6.2 + Math.min(1.3, (score - 300) * 0.001);
+  const h = pB.x - pA.x;
+  const t = (score - pA.x) / h;
+
+  // Hermite basis functions
+  const h00 = 2 * Math.pow(t, 3) - 3 * Math.pow(t, 2) + 1;
+  const h10 = Math.pow(t, 3) - 2 * Math.pow(t, 2) + t;
+  const h01 = -2 * Math.pow(t, 3) + 3 * Math.pow(t, 2);
+  const h11 = Math.pow(t, 3) - Math.pow(t, 2);
+
+  return h00 * pA.y + h10 * h * pA.m + h01 * pB.y + h11 * h * pB.m;
 }
 
 export function useGameEngine() {
